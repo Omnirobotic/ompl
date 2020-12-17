@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.5)
-project(ompl VERSION 1.5.0 LANGUAGES CXX)
+project(ompl VERSION 1.5.1 LANGUAGES CXX)
 set(OMPL_ABI_VERSION 16)
 
 # set the default build type
@@ -42,17 +42,30 @@ if(MSVC)
 endif(MSVC)
 # Ensure dynamic linking with boost unit_test_framework
 add_definitions(-DBOOST_TEST_DYN_LINK)
+# Avoid valgrind error due to overflow error, cf. https://bitbucket.org/ompl/ompl/issues/543
+add_definitions(-DBOOST_MATH_NO_LONG_DOUBLE_MATH_FUNCTIONS)
 
 set_package_properties(Boost PROPERTIES
-    URL "http://boost.org"
+    URL "https://www.boost.org"
     PURPOSE "Used throughout OMPL for data serialization, graphs, etc.")
+set(Boost_USE_MULTITHREADED ON)
+set(Boost_NO_BOOST_CMAKE ON)
 find_package(Boost 1.58 QUIET REQUIRED COMPONENTS serialization filesystem system program_options)
 include_directories(SYSTEM ${Boost_INCLUDE_DIR})
 
 # Add support in Boost::Python for std::shared_ptr
 # This is a hack that replaces boost::shared_ptr related code with std::shared_ptr.
 # Proper support for std::shared_ptr was added in Boost 1.63.
-if(Boost_VERSION VERSION_LESS "106300")
+if (NOT Boost_VERSION_STRING)
+    if (Boost_VERSION_MAJOR)
+        set(Boost_VERSION_STRING
+            "${Boost_VERSION_MAJOR}.${Boost_VERSION_MINOR}.${Boost_VERSION_PATCH}")
+    else()
+        set(Boost_VERSION_STRING
+            "${Boost_MAJOR_VERSION}.${Boost_MINOR_VERSION}.${Boost_PATCH_VERSION}")
+    endif()
+endif()
+if(Boost_VERSION_STRING VERSION_LESS "1.63.0")
     include_directories("${CMAKE_CURRENT_SOURCE_DIR}/src/external")
 endif()
 
@@ -82,14 +95,14 @@ find_package(Threads QUIET)
 enable_testing()
 
 set_package_properties(Python PROPERTIES
-    URL "http://python.org"
+    URL "https://www.python.org"
     PURPOSE "Used for python bindings.")
 find_package(Python QUIET)
 find_boost_python()
 
 if(PYTHON_FOUND)
     set_package_properties(pypy PROPERTIES
-        URL "http://pypy.org"
+        URL "https://pypy.org"
         PURPOSE "Used to speed up the generation of python bindings.")
     find_package(pypy QUIET)
 endif()
@@ -106,14 +119,13 @@ set_package_properties(MORSE PROPERTIES
 find_package(MORSE QUIET)
 set(OMPL_EXTENSION_MORSE ${MORSE_FOUND})
 
-set_package_properties(OpenDE PROPERTIES
+set_package_properties(ODE PROPERTIES
     URL "http://ode.org"
     PURPOSE "The Open Dynamics Engine can be used as a \"black box\" for kinodynamic planning.")
-find_package(OpenDE QUIET)
-set(OMPL_EXTENSION_OPENDE ${OPENDE_FOUND})
-if (OPENDE_FOUND)
-  add_definitions(${OPENDE_DEFINITIONS})
-  include_directories(${OPENDE_INCLUDE_DIR})
+find_package(ODE QUIET)
+set(OMPL_EXTENSION_ODE ${ODE_FOUND})
+if (OMPL_EXTENSION_ODE)
+  include_directories(${ODE_INCLUDE_DIRS})
 endif()
 
 set_package_properties(Triangle PROPERTIES
@@ -121,7 +133,7 @@ set_package_properties(Triangle PROPERTIES
     PURPOSE "Used to create triangular decompositions of polygonal 2D environments.")
 find_package(Triangle QUIET)
 set(OMPL_EXTENSION_TRIANGLE ${TRIANGLE_FOUND})
-if (TRIANGLE_FOUND)
+if (OMPL_EXTENSION_TRIANGLE)
   include_directories(${TRIANGLE_INCLUDE_DIR})
 endif()
 
@@ -139,7 +151,7 @@ set_package_properties(spot PROPERTIES
     URL "http://spot.lrde.epita.fr"
     PURPOSE "Used for constructing finite automata from LTL formulae.")
 find_package(spot)
-if (SPOT_FOUND)
+if (spot_FOUND)
     set(OMPL_HAVE_SPOT 1)
     include_directories("${SPOT_INCLUDE_DIRS}")
     link_directories(${SPOT_LIBRARY_DIRS})
@@ -147,11 +159,11 @@ endif()
 
 set_package_properties(Doxygen PROPERTIES
     URL "http://doxygen.org"
-    PURPOSE "Used to create the OMPL documentation (i.e., http://ompl.kavrakilab.org).")
+    PURPOSE "Used to create the OMPL documentation (i.e., https://ompl.kavrakilab.org).")
 find_package(Doxygen)
 
 # Numpy is used to convert Eigen matrices/vectors to numpy arrays
-if(PYTHON_FOUND AND NOT Boost_VERSION VERSION_LESS "106300")
+if(PYTHON_FOUND AND NOT Boost_VERSION_STRING VERSION_LESS "1.63.0")
     find_python_module(numpy)
     if (PY_NUMPY)
         find_boost_numpy()
@@ -176,7 +188,10 @@ if(NOT MSVC)
     target_link_flags(ompl)
     set(PKG_NAME "ompl")
     set(PKG_DESC "The Open Motion Planning Library")
-    set(PKG_EXTERNAL_DEPS "${ompl_PKG_DEPS}")
+    set(PKG_EXTERNAL_DEPS "eigen3 ${ompl_PKG_DEPS}")
+    if(OMPL_EXTENSION_ODE)
+        set(PKG_EXTERNAL_DEPS "${PKG_EXTERNAL_DEPS}")
+    endif()
     set(PKG_OMPL_LIBS "-lompl ${ompl_LINK_FLAGS}")
     configure_file("${CMAKE_CURRENT_SOURCE_DIR}/CMakeModules/ompl.pc.in"
                    "${CMAKE_CURRENT_BINARY_DIR}/ompl.pc" @ONLY)
@@ -223,17 +238,19 @@ if (OMPL_REGISTRATION)
         file(WRITE "${CMAKE_CURRENT_SOURCE_DIR}/.registered" "")
         find_package(Python QUIET)
         if (PYTHON_FOUND)
-            execute_process(COMMAND "${PYTHON_EXEC}" "-m" "webbrowser" "http://ompl.kavrakilab.org/core/register.html"
+            execute_process(COMMAND "${PYTHON_EXEC}" "-m" "webbrowser" "https://ompl.kavrakilab.org/core/register.html"
                 OUTPUT_QUIET ERROR_QUIET)
         endif()
     endif()
 endif()
 
-# needed for ROS installation
-if (EXISTS "package.xml")
-    # install catkin package.xml
-    install(FILES package.xml DESTINATION "share/ompl")
-endif()
+# install catkin package.xml (needed for ROS installation)
+install(FILES package.xml
+    DESTINATION share/${PROJECT_NAME})
+
+# Allows Colcon to find non-Ament packages when using workspace underlays
+file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/share/ament_index/resource_index/packages/${PROJECT_NAME} "")
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/share/ament_index/resource_index/packages/${PROJECT_NAME} DESTINATION share/ament_index/resource_index/packages)
 
 set_package_properties(PkgConfig PROPERTIES
     URL "https://www.freedesktop.org/wiki/Software/pkg-config/"
