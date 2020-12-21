@@ -698,7 +698,7 @@ bool ompl::geometric::PathSimplifier::simplify(PathGeometric &path, const base::
             unsigned int times = 0;
             do
             {
-                bool shortcut = shortcutPath(path, minStates);  // split path segments, not just vertices
+                bool shortcut = shortcutPath(path);  // split path segments, not just vertices
                 bool better_goal =
                     gsr_ ? findBetterGoal(path, ptc) : false;  // Try to connect the path to a closer goal
 
@@ -727,11 +727,11 @@ bool ompl::geometric::PathSimplifier::simplify(PathGeometric &path, const base::
 
         // try a randomized step of connecting vertices
         if (ptc == false || atLeastOnce)
-            tryMore = reduceVertices(path, 0,0, 0.33, minStates);
+            tryMore = reduceVertices(path, 0, 0, 0.33, minStates);
 
         // try to collapse close-by vertices
         if (ptc == false || atLeastOnce)
-            collapseCloseVertices(path,0,0, minStates);
+            collapseCloseVertices(path, 0, 0, minStates);
 
         // try to reduce verices some more, if there is any point in doing so
         unsigned int times = 0;
