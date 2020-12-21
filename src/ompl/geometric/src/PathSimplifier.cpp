@@ -77,9 +77,9 @@ void ompl::geometric::PathSimplifier::freeStates(bool flag)
 }
 
 /* Based on COMP450 2010 project of Yun Yu and Linda Hill (Rice University) */
-void ompl::geometric::PathSimplifier::smoothBSpline(PathGeometric &path, unsigned int maxSteps, double minChange)
+void ompl::geometric::PathSimplifier::smoothBSpline(PathGeometric &path, unsigned int maxSteps, double minChange, int minStates)
 {
-    if (path.getStateCount() < 3)
+    if (path.getStateCount() < minStates+1)
         return;
 
     const base::SpaceInformationPtr &si = path.getSpaceInformation();
@@ -122,9 +122,9 @@ void ompl::geometric::PathSimplifier::smoothBSpline(PathGeometric &path, unsigne
 }
 
 bool ompl::geometric::PathSimplifier::reduceVertices(PathGeometric &path, unsigned int maxSteps,
-                                                     unsigned int maxEmptySteps, double rangeRatio)
+                                                     unsigned int maxEmptySteps, double rangeRatio, int minStates)
 {
-    if (path.getStateCount() < 3)
+    if (path.getStateCount() < minStates + 1)
         return false;
 
     if (maxSteps == 0)
@@ -138,7 +138,7 @@ bool ompl::geometric::PathSimplifier::reduceVertices(PathGeometric &path, unsign
     const base::SpaceInformationPtr &si = path.getSpaceInformation();
     std::vector<base::State *> &states = path.getStates();
 
-    if (si->checkMotion(states.front(), states.back()))
+    if (si->checkMotion(states.front(), states.back()) && minStates == 2)
     {
         if (freeStates_)
             for (std::size_t i = 2; i < states.size(); ++i)
@@ -177,6 +177,10 @@ bool ompl::geometric::PathSimplifier::reduceVertices(PathGeometric &path, unsign
                     for (int j = p1 + 1; j < p2; ++j)
                         si->freeState(states[j]);
                 states.erase(states.begin() + p1 + 1, states.begin() + p2);
+                if (states.size() < minStates + 1)
+                {
+                    break;
+                }
                 nochange = 0;
                 result = true;
             }
@@ -185,9 +189,9 @@ bool ompl::geometric::PathSimplifier::reduceVertices(PathGeometric &path, unsign
 }
 
 bool ompl::geometric::PathSimplifier::shortcutPath(PathGeometric &path, unsigned int maxSteps,
-                                                   unsigned int maxEmptySteps, double rangeRatio, double snapToVertex)
+                                                   unsigned int maxEmptySteps, double rangeRatio, double snapToVertex, int minStates)
 {
-    if (path.getStateCount() < 3)
+    if (path.getStateCount() < minStates + 1)
         return false;
 
     if (maxSteps == 0)
@@ -603,9 +607,9 @@ bool ompl::geometric::PathSimplifier::perturbPath(PathGeometric &path, double st
 }
 
 bool ompl::geometric::PathSimplifier::collapseCloseVertices(PathGeometric &path, unsigned int maxSteps,
-                                                            unsigned int maxEmptySteps)
+                                                            unsigned int maxEmptySteps, int minStates)
 {
-    if (path.getStateCount() < 3)
+    if (path.getStateCount() < minStates + 1)
         return false;
 
     if (maxSteps == 0)
@@ -651,6 +655,10 @@ bool ompl::geometric::PathSimplifier::collapseCloseVertices(PathGeometric &path,
                     for (int i = p1 + 1; i < p2; ++i)
                         si->freeState(states[i]);
                 states.erase(states.begin() + p1 + 1, states.begin() + p2);
+                if (states.size() < minStates + 1)
+                {
+                    break;
+                }
                 result = true;
                 nochange = 0;
             }
@@ -663,21 +671,21 @@ bool ompl::geometric::PathSimplifier::collapseCloseVertices(PathGeometric &path,
     return result;
 }
 
-bool ompl::geometric::PathSimplifier::simplifyMax(PathGeometric &path)
+bool ompl::geometric::PathSimplifier::simplifyMax(PathGeometric &path, int minStates)
 {
     ompl::base::PlannerTerminationCondition neverTerminate = base::plannerNonTerminatingCondition();
-    return simplify(path, neverTerminate);
+    return simplify(path, neverTerminate, true,  minStates);
 }
 
-bool ompl::geometric::PathSimplifier::simplify(PathGeometric &path, double maxTime, bool atLeastOnce)
+bool ompl::geometric::PathSimplifier::simplify(PathGeometric &path, double maxTime, bool atLeastOnce, int minStates)
 {
-    return simplify(path, base::timedPlannerTerminationCondition(maxTime), atLeastOnce);
+    return simplify(path, base::timedPlannerTerminationCondition(maxTime), atLeastOnce, minStates);
 }
 
 bool ompl::geometric::PathSimplifier::simplify(PathGeometric &path, const base::PlannerTerminationCondition &ptc,
-                                               bool atLeastOnce)
+                                               bool atLeastOnce, int minStates)
 {
-    if (path.getStateCount() < 3)
+    if (path.getStateCount() < minStates+1)
         return true;
 
     bool tryMore = true, valid = true;
@@ -690,7 +698,7 @@ bool ompl::geometric::PathSimplifier::simplify(PathGeometric &path, const base::
             unsigned int times = 0;
             do
             {
-                bool shortcut = shortcutPath(path);  // split path segments, not just vertices
+                bool shortcut = shortcutPath(path, minStates);  // split path segments, not just vertices
                 bool better_goal =
                     gsr_ ? findBetterGoal(path, ptc) : false;  // Try to connect the path to a closer goal
 
@@ -699,7 +707,7 @@ bool ompl::geometric::PathSimplifier::simplify(PathGeometric &path, const base::
 
             // smooth the path with BSpline interpolation
             if (ptc == false || atLeastOnce)
-                smoothBSpline(path, 3, path.length() / 100.0);
+                smoothBSpline(path, 3, path.length() / 100.0, minStates);
 
             if (ptc == false || atLeastOnce)
             {
@@ -719,16 +727,16 @@ bool ompl::geometric::PathSimplifier::simplify(PathGeometric &path, const base::
 
         // try a randomized step of connecting vertices
         if (ptc == false || atLeastOnce)
-            tryMore = reduceVertices(path);
+            tryMore = reduceVertices(path, 0,0, 0.33, minStates);
 
         // try to collapse close-by vertices
         if (ptc == false || atLeastOnce)
-            collapseCloseVertices(path);
+            collapseCloseVertices(path,0,0, minStates);
 
         // try to reduce verices some more, if there is any point in doing so
         unsigned int times = 0;
         while ((ptc == false || atLeastOnce) && tryMore && ++times <= 5)
-            tryMore = reduceVertices(path);
+            tryMore = reduceVertices(path, 0, 0, 0.33, minStates);
 
         if ((ptc == false || atLeastOnce) && si_->getStateSpace()->isMetricSpace())
         {

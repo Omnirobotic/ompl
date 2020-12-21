@@ -91,7 +91,7 @@ namespace ompl
 
             */
             bool reduceVertices(PathGeometric &path, unsigned int maxSteps = 0, unsigned int maxEmptySteps = 0,
-                                double rangeRatio = 0.33);
+                                double rangeRatio = 0.33, int minStates=2);
 
             /** \brief Given a path, attempt to shorten it while maintaining its validity. This is an iterative process
                 that attempts to do "short-cutting" on the path. Connection is attempted between random points along the
@@ -123,7 +123,7 @@ namespace ompl
                 being run with conjunction with perturbPath.
             */
             bool shortcutPath(PathGeometric &path, unsigned int maxSteps = 0, unsigned int maxEmptySteps = 0,
-                              double rangeRatio = 0.33, double snapToVertex = 0.005);
+                              double rangeRatio = 0.33, double snapToVertex = 0.005, int minStates = 2);
 
             /** \brief Given a path, attempt to improve the cost by randomly perturbing a randomly selected point on
                 the path. This is an iterative process that should ideally be run in conjunction with shortcutPath.
@@ -174,7 +174,7 @@ namespace ompl
                 not produce a simplification, it is called an empty step. \e maxEmptySteps denotes the maximum number of
                 consecutive empty steps before the simplification process terminates.
             */
-            bool collapseCloseVertices(PathGeometric &path, unsigned int maxSteps = 0, unsigned int maxEmptySteps = 0);
+            bool collapseCloseVertices(PathGeometric &path, unsigned int maxSteps = 0, unsigned int maxEmptySteps = 0, int minStates = 2);
 
             /** \brief Given a path, attempt to smooth it (the validity of the path is maintained).
 
@@ -186,22 +186,22 @@ namespace ompl
                 function assumes the triangle inequality holds and should not be run on non-metric spaces.
                 */
             void smoothBSpline(PathGeometric &path, unsigned int maxSteps = 5,
-                               double minChange = std::numeric_limits<double>::epsilon());
+                               double minChange = std::numeric_limits<double>::epsilon(), int minStates = 2);
 
             /** \brief Given a path, attempt to remove vertices from it while keeping the path valid. Then, try to
                smooth the path. This function applies the same set of default operations to the path, except in
                non-metric spaces, with the intention of simplifying it. In non-metric spaces, some operations are
                skipped because they do not work correctly when the triangle inequality may not hold. Return
                \e false iff the simplified path is not valid. */
-            bool simplifyMax(PathGeometric &path);
+            bool simplifyMax(PathGeometric &path, int minStates = 2);
 
             /** \brief Run simplification algorithms on the path for at most \e maxTime seconds, and at least once if \e
                atLeastOnce. Return false iff the simplified path is not valid. */
-            bool simplify(PathGeometric &path, double maxTime, bool atLeastOnce = true);
+            bool simplify(PathGeometric &path, double maxTime, bool atLeastOnce = true, int minStates = 2);
 
             /** \brief Run simplification algorithms on the path as long as the termination condition does not become
                true, and at least once if \e atLeastOnce. Return \e false iff the simplified path is not valid. */
-            bool simplify(PathGeometric &path, const base::PlannerTerminationCondition &ptc, bool atLeastOnce = true);
+            bool simplify(PathGeometric &path, const base::PlannerTerminationCondition &ptc, bool atLeastOnce = true, int minStates = 2);
 
             /** \brief Attempt to improve the solution path by sampling a new goal state and connecting this state to
                 the solution path for at most \e maxTime seconds.
