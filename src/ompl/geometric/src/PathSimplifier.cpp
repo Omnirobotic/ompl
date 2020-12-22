@@ -79,7 +79,7 @@ void ompl::geometric::PathSimplifier::freeStates(bool flag)
 /* Based on COMP450 2010 project of Yun Yu and Linda Hill (Rice University) */
 void ompl::geometric::PathSimplifier::smoothBSpline(PathGeometric &path, unsigned int maxSteps, double minChange, int minStates)
 {
-    if (path.getStateCount() < minStates+1)
+    if (path.getStateCount() <= minStates)
         return;
 
     const base::SpaceInformationPtr &si = path.getSpaceInformation();
@@ -124,7 +124,7 @@ void ompl::geometric::PathSimplifier::smoothBSpline(PathGeometric &path, unsigne
 bool ompl::geometric::PathSimplifier::reduceVertices(PathGeometric &path, unsigned int maxSteps,
                                                      unsigned int maxEmptySteps, double rangeRatio, int minStates)
 {
-    if (path.getStateCount() < minStates + 1)
+    if (path.getStateCount() <= minStates)
         return false;
 
     if (maxSteps == 0)
@@ -177,7 +177,7 @@ bool ompl::geometric::PathSimplifier::reduceVertices(PathGeometric &path, unsign
                     for (int j = p1 + 1; j < p2; ++j)
                         si->freeState(states[j]);
                 states.erase(states.begin() + p1 + 1, states.begin() + p2);
-                if (states.size() < minStates + 1)
+                if (states.size() <= minStates)
                 {
                     break;
                 }
@@ -191,7 +191,7 @@ bool ompl::geometric::PathSimplifier::reduceVertices(PathGeometric &path, unsign
 bool ompl::geometric::PathSimplifier::shortcutPath(PathGeometric &path, unsigned int maxSteps,
                                                    unsigned int maxEmptySteps, double rangeRatio, double snapToVertex, int minStates)
 {
-    if (path.getStateCount() < minStates + 1)
+    if (path.getStateCount() <= minStates)
         return false;
 
     if (maxSteps == 0)
@@ -609,7 +609,7 @@ bool ompl::geometric::PathSimplifier::perturbPath(PathGeometric &path, double st
 bool ompl::geometric::PathSimplifier::collapseCloseVertices(PathGeometric &path, unsigned int maxSteps,
                                                             unsigned int maxEmptySteps, int minStates)
 {
-    if (path.getStateCount() < minStates + 1)
+    if (path.getStateCount() <= minStates)
         return false;
 
     if (maxSteps == 0)
@@ -655,7 +655,7 @@ bool ompl::geometric::PathSimplifier::collapseCloseVertices(PathGeometric &path,
                     for (int i = p1 + 1; i < p2; ++i)
                         si->freeState(states[i]);
                 states.erase(states.begin() + p1 + 1, states.begin() + p2);
-                if (states.size() < minStates + 1)
+                if (states.size() <= minStates)
                 {
                     break;
                 }
@@ -685,7 +685,7 @@ bool ompl::geometric::PathSimplifier::simplify(PathGeometric &path, double maxTi
 bool ompl::geometric::PathSimplifier::simplify(PathGeometric &path, const base::PlannerTerminationCondition &ptc,
                                                bool atLeastOnce, int minStates)
 {
-    if (path.getStateCount() < minStates+1)
+    if (path.getStateCount() <= minStates)
         return true;
 
     bool tryMore = true, valid = true;
