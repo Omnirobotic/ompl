@@ -46,7 +46,27 @@ if (OMPL_BUILD_DEMOS)
     add_ompl_demo(demo_ConstrainedPlanningImplicitParallel constraint/ConstrainedPlanningImplicitParallel.cpp)
     add_ompl_demo(demo_ConstrainedPlanningKinematicChain constraint/ConstrainedPlanningKinematicChain.cpp)
 
-    if (OMPL_EXTENSION_OPENDE)
+    add_ompl_demo(demo_QuotientSpacePlanningRigidBody2D quotientspace/QuotientSpacePlanningRigidBody2D.cpp)
+    add_ompl_demo(demo_QuotientSpacePlanningRigidBody3D quotientspace/QuotientSpacePlanningRigidBody3D.cpp)
+    add_ompl_demo(demo_QuotientSpacePlanningKinematicChain quotientspace/QuotientSpacePlanningKinematicChain.cpp)
+    add_ompl_demo(demo_QuotientSpacePlanningHyperCube quotientspace/QuotientSpacePlanningHyperCube.cpp)
+    add_ompl_demo(demo_QuotientSpacePlanningHyperCubeBenchmark quotientspace/QuotientSpacePlanningHyperCubeBenchmark.cpp)
+
+    find_package(yaml-cpp)
+    set_package_properties(yaml-cpp PROPERTIES
+        URL "https://github.com/jbeder/yaml-cpp"
+        PURPOSE "Used for parsing input data for the PlanarManipulator demo.")
+    if (yaml-cpp_FOUND)
+        add_ompl_demo(demo_PlanarManipulator
+            PlanarManipulator/PlanarManipulatorDemo.cpp
+            PlanarManipulator/PlanarManipulator.cpp
+            PlanarManipulator/PolyWorld.cpp
+        )
+        target_include_directories(demo_PlanarManipulator PUBLIC ${YAMLCPP_INCLUDE_DIRS})
+        target_link_libraries(demo_PlanarManipulator ${YAMLCPP_LIBRARIES})
+    endif()
+
+    if (OMPL_EXTENSION_ODE)
         add_ompl_demo(demo_OpenDERigidBodyPlanning OpenDERigidBodyPlanning.cpp)
     endif()
 
